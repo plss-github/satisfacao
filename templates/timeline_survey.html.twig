@@ -1,0 +1,9 @@
+{#
+ # Renderiza o item "Pesquisa de satisfação" dentro da timeline do
+ # chamado. `entry_i` (o array `item` do item de timeline) e `item` (o
+ # próprio Ticket) vêm do contexto do timeline.html.twig que faz o
+ # include deste template.
+ #}
+{% if entry_i is defined and entry_i['id'] is defined and entry_i['id'] %}
+    {{ call('GlpiPlugin\\Satisfacao\\SurveyTicket::renderTimelineEntry', [entry_i['id'], item]) }}
+{% endif %}

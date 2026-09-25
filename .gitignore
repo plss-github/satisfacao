@@ -1,0 +1,8 @@
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Artefato gerado pelo workflow de release (não deve ser versionado)
+*.tar.gz
