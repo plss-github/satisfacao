@@ -86,7 +86,7 @@ function plugin_version_satisfacao()
     return [
         'name'         => 'Pesquisa de Satisfação',
         'version'      => PLUGIN_SATISFACAO_VERSION,
-        'author'       => 'Pellissari',
+        'author'       => 'Matheus Schmidt',
         'license'      => 'GPLv2+',
         'homepage'     => '',
         'requirements' => [
