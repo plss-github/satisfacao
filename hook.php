@@ -81,12 +81,28 @@ function plugin_satisfacao_install()
                 `entities_id` int unsigned NOT NULL DEFAULT 0,
                 `header_message` text DEFAULT NULL,
                 `thankyou_message` text DEFAULT NULL,
+                `excluded_requesttypes` text DEFAULT NULL,
+                `excluded_categories` text DEFAULT NULL,
+                `excluded_users` text DEFAULT NULL,
+                `excluded_groups` text DEFAULT NULL,
                 `date_creation` timestamp NULL DEFAULT NULL,
                 `date_mod` timestamp NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `entities_id` (`entities_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$collate};"
         ) or die($DB->error());
+    } else {
+        // Instalação existente de antes dos critérios de exclusão de
+        // disparo (origem/categoria/solicitante/grupo) — adiciona as
+        // colunas se ainda não existirem.
+        foreach (['excluded_requesttypes', 'excluded_categories', 'excluded_users', 'excluded_groups'] as $column) {
+            if (!$DB->fieldExists('glpi_plugin_satisfacao_surveysettings', $column)) {
+                $DB->doQuery(
+                    "ALTER TABLE `glpi_plugin_satisfacao_surveysettings`
+                        ADD COLUMN `{$column}` text DEFAULT NULL;"
+                ) or die($DB->error());
+            }
+        }
     }
 
     plugin_satisfacao_install_notification();

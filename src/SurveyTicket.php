@@ -54,6 +54,10 @@ class SurveyTicket extends CommonDBTM
             return;
         }
 
+        if (SurveySettings::ticketIsExcluded($ticket)) {
+            return;
+        }
+
         $survey = new self();
         $id = $survey->add([
             'tickets_id'  => $tickets_id,
