@@ -1,5 +1,6 @@
 <?php
 
+use GlpiPlugin\Satisfacao\Menu;
 use GlpiPlugin\Satisfacao\Question;
 
 Session::checkRight('config', UPDATE);
@@ -19,7 +20,8 @@ if (isset($_POST['add'])) {
     $question->delete($_POST, 1);
     Html::redirect(PLUGIN_SATISFACAO_WEBDIR . '/front/question.php');
 } else {
-    Html::header(Question::getTypeName(1), PLUGIN_SATISFACAO_WEBDIR . '/front/question.form.php', 'admin', \GlpiPlugin\Satisfacao\Menu::class);
+    Html::header(Question::getTypeName(1), PLUGIN_SATISFACAO_WEBDIR . '/front/question.form.php', 'admin', Menu::class);
+    Menu::renderSubNav('question');
     $id = (int) ($_GET['id'] ?? -1);
     $question->showForm($id);
     Html::footer();

@@ -1,26 +1,25 @@
 <?php
 
+use GlpiPlugin\Satisfacao\Menu;
 use GlpiPlugin\Satisfacao\Question;
 
 Session::checkRight('config', UPDATE);
 
-Html::header(Question::getTypeName(2), PLUGIN_SATISFACAO_WEBDIR . '/front/question.php', 'admin', \GlpiPlugin\Satisfacao\Menu::class);
+Html::header(Question::getTypeName(2), PLUGIN_SATISFACAO_WEBDIR . '/front/question.php', 'admin', Menu::class);
 
-echo '<div class="alert alert-info">' . __(
+Menu::renderSubNav('question');
+
+echo '<div class="alert alert-info d-flex align-items-center">';
+echo '<i class="ti ti-info-circle fs-2 me-2"></i>';
+echo __(
     'Não existe um objeto "pesquisa" separado: todas as perguntas ativas cadastradas para a entidade de um chamado formam a pesquisa que aparece quando esse chamado é fechado. Para montar a pesquisa, basta cadastrar as perguntas abaixo.',
     'satisfacao'
-) . '</div>';
-
-echo '<div class="mb-2 d-flex justify-content-between align-items-center">';
-echo '<a class="btn btn-primary" href="' . Question::getFormURL() . '">'
-    . '<i class="ti ti-plus"></i> ' . __('Nova pergunta', 'satisfacao') . '</a>';
-echo '<div>';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php">'
-    . __('Mensagens de cabeçalho e agradecimento', 'satisfacao') . '</a>';
-echo ' | ';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/result.php">'
-    . __('Ver resultados da pesquisa', 'satisfacao') . '</a>';
+);
 echo '</div>';
+
+echo '<div class="mb-3">';
+echo '<a class="btn btn-primary" href="' . Question::getFormURL() . '">'
+    . '<i class="ti ti-plus me-1"></i>' . __('Nova pergunta', 'satisfacao') . '</a>';
 echo '</div>';
 
 Search::show(Question::class);

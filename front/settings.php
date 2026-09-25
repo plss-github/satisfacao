@@ -1,5 +1,6 @@
 <?php
 
+use GlpiPlugin\Satisfacao\Menu;
 use GlpiPlugin\Satisfacao\SurveySettings;
 
 Session::checkRight('config', UPDATE);
@@ -26,37 +27,32 @@ if (isset($_POST['save'])) {
     Html::redirect(PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php');
 }
 
-Html::header(SurveySettings::getTypeName(2), PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php', 'admin', \GlpiPlugin\Satisfacao\Menu::class);
+Html::header(SurveySettings::getTypeName(2), PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php', 'admin', Menu::class);
 
-// Ícone "?" com tooltip (padrão GLPI: templates/components/form/fields_macros.html.twig),
-// pra explicações de campo que hoje ficam como texto solto abaixo do campo.
-$help_icon = static function (string $text): string {
-    return "<span class='form-help' style='margin-left:3px' data-bs-toggle='tooltip' data-bs-placement='top' data-bs-html='true' data-bs-title='"
-        . htmlescape($text) . "'>?</span>";
-};
-
-echo '<div class="mb-2">';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/question.php">'
-    . __('Gerenciar perguntas', 'satisfacao') . '</a>';
-echo ' | ';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/result.php">'
-    . __('Ver resultados da pesquisa', 'satisfacao') . '</a>';
-echo '</div>';
+Menu::renderSubNav('settings');
 
 $settings = SurveySettings::getForEntity($entities_id);
 
-echo '<div class="alert alert-info">' . sprintf(
+echo '<div class="alert alert-info d-flex align-items-center mb-3">';
+echo '<i class="ti ti-building fs-2 me-2"></i>';
+echo sprintf(
     __('Mensagens da entidade atual: %s. Para configurar outra entidade, troque a entidade ativa (seletor no topo da página) e volte aqui.', 'satisfacao'),
     '<strong>' . htmlescape(Dropdown::getDropdownName('glpi_entities', $entities_id)) . '</strong>'
-) . '</div>';
+);
+echo '</div>';
 
 echo '<form method="post" action="' . PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php">';
 echo Html::hidden('_glpi_csrf_token', ['value' => Session::getNewCSRFToken()]);
+
+echo '<div class="card mb-4">';
+echo '<div class="card-header"><h3 class="card-title"><i class="ti ti-message-2 me-2"></i>'
+    . __('Mensagens da pesquisa', 'satisfacao') . '</h3></div>';
+echo '<div class="card-body">';
 echo '<table class="tab_cadre_fixe">';
 
 echo '<tr class="tab_bg_1">';
 echo '<td style="width: 25%">' . __('Mensagem de cabeçalho', 'satisfacao')
-    . $help_icon(__('Aparece no topo da pesquisa, antes das perguntas. Deixe em branco pra não mostrar nada.', 'satisfacao'))
+    . Menu::helpIcon(__('Aparece no topo da pesquisa, antes das perguntas. Deixe em branco pra não mostrar nada.', 'satisfacao'))
     . '</td>';
 echo '<td>';
 echo '<textarea name="header_message" rows="3" style="width:100%" placeholder="' . __('Ex: Sua opinião é muito importante para melhorarmos nosso atendimento.', 'satisfacao') . '">'
@@ -67,7 +63,7 @@ echo '</tr>';
 
 echo '<tr class="tab_bg_1">';
 echo '<td>' . __('Mensagem de agradecimento', 'satisfacao')
-    . $help_icon(__('Aparece depois que a pessoa responde a pesquisa. Deixe em branco pra usar a mensagem padrão ("Respondida em ...").', 'satisfacao'))
+    . Menu::helpIcon(__('Aparece depois que a pessoa responde a pesquisa. Deixe em branco pra usar a mensagem padrão ("Respondida em ...").', 'satisfacao'))
     . '</td>';
 echo '<td>';
 echo '<textarea name="thankyou_message" rows="3" style="width:100%" placeholder="' . __('Ex: Obrigado por avaliar nosso atendimento!', 'satisfacao') . '">'
@@ -77,12 +73,17 @@ echo '</td>';
 echo '</tr>';
 
 echo '</table>';
+echo '</div>'; // card-body
+echo '</div>'; // card
 
 $exclusions = $settings->getExclusions();
 
-echo '<h3 class="mt-4">' . __('Não gerar pesquisa quando', 'satisfacao')
-    . $help_icon(__('Chamados que atendam a qualquer um dos critérios abaixo não recebem pesquisa de satisfação. Útil para chamados abertos por ferramentas de monitoramento/integrações. Deixe em branco pra não excluir nada.', 'satisfacao'))
-    . '</h3>';
+echo '<div class="card mb-4">';
+echo '<div class="card-header"><h3 class="card-title"><i class="ti ti-filter-off me-2"></i>'
+    . __('Não gerar pesquisa quando', 'satisfacao')
+    . Menu::helpIcon(__('Chamados que atendam a qualquer um dos critérios abaixo não recebem pesquisa de satisfação. Útil para chamados abertos por ferramentas de monitoramento/integrações. Deixe em branco pra não excluir nada.', 'satisfacao'))
+    . '</h3></div>';
+echo '<div class="card-body">';
 echo '<table class="tab_cadre_fixe">';
 
 echo '<tr class="tab_bg_1">';
@@ -115,7 +116,7 @@ echo '</tr>';
 
 echo '<tr class="tab_bg_1">';
 echo '<td>' . __('Solicitante', 'satisfacao')
-    . $help_icon(__('Ex: conta técnica usada por uma ferramenta de monitoramento pra abrir chamados automaticamente.', 'satisfacao'))
+    . Menu::helpIcon(__('Ex: conta técnica usada por uma ferramenta de monitoramento pra abrir chamados automaticamente.', 'satisfacao'))
     . '</td>';
 echo '<td>';
 User::dropdown([
@@ -141,8 +142,10 @@ echo '</td>';
 echo '</tr>';
 
 echo '</table>';
+echo '</div>'; // card-body
+echo '</div>'; // card
 
-echo '<div class="mt-2">';
+echo '<div class="mb-3">';
 echo Html::submit(__('Salvar', 'satisfacao'), ['name' => 'save']);
 echo '</div>';
 echo '</form>';

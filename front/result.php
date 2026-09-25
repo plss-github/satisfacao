@@ -1,18 +1,13 @@
 <?php
 
+use GlpiPlugin\Satisfacao\Menu;
 use GlpiPlugin\Satisfacao\SurveyTicket;
 
 Session::checkRight('config', UPDATE);
 
-Html::header(__('Resultados da pesquisa de satisfação', 'satisfacao'), PLUGIN_SATISFACAO_WEBDIR . '/front/result.php', 'admin', \GlpiPlugin\Satisfacao\Menu::class);
+Html::header(__('Resultados da pesquisa de satisfação', 'satisfacao'), PLUGIN_SATISFACAO_WEBDIR . '/front/result.php', 'admin', Menu::class);
 
-echo '<div class="mb-2">';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/question.php">'
-    . __('Gerenciar perguntas', 'satisfacao') . '</a>';
-echo ' | ';
-echo '<a href="' . PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php">'
-    . __('Mensagens de cabeçalho e agradecimento', 'satisfacao') . '</a>';
-echo '</div>';
+Menu::renderSubNav('result');
 
 global $DB;
 
@@ -38,17 +33,51 @@ foreach ($iterator as $row) {
     $avg_rating = $row['avg_note'];
 }
 
-echo '<table class="tab_cadre_fixe">';
-echo '<tr><th colspan="2">' . __('Indicadores', 'satisfacao') . '</th></tr>';
-echo '<tr class="tab_bg_1"><td>' . __('Pesquisas geradas', 'satisfacao') . '</td><td>' . $total . '</td></tr>';
-echo '<tr class="tab_bg_1"><td>' . __('Pesquisas respondidas', 'satisfacao') . '</td><td>' . $answered . '</td></tr>';
-echo '<tr class="tab_bg_1"><td>' . __('Taxa de resposta', 'satisfacao') . '</td><td>' . $rate . '%</td></tr>';
-echo '<tr class="tab_bg_1"><td>' . __('Nota média (perguntas do tipo nota)', 'satisfacao') . '</td><td>'
-    . ($avg_rating !== null ? round((float) $avg_rating, 2) : '-')
-    . '</td></tr>';
-echo '</table>';
+$indicators = [
+    [
+        'icon'  => 'ti-send',
+        'color' => 'blue',
+        'value' => $total,
+        'label' => __('Pesquisas geradas', 'satisfacao'),
+    ],
+    [
+        'icon'  => 'ti-checkbox',
+        'color' => 'green',
+        'value' => $answered,
+        'label' => __('Pesquisas respondidas', 'satisfacao'),
+    ],
+    [
+        'icon'  => 'ti-percentage',
+        'color' => 'azure',
+        'value' => $rate . '%',
+        'label' => __('Taxa de resposta', 'satisfacao'),
+    ],
+    [
+        'icon'  => 'ti-star',
+        'color' => 'yellow',
+        'value' => $avg_rating !== null ? round((float) $avg_rating, 2) : '-',
+        'label' => __('Nota média (perguntas do tipo nota)', 'satisfacao'),
+    ],
+];
 
-echo '<br>';
+echo '<div class="row row-cards mb-4">';
+foreach ($indicators as $indicator) {
+    echo '<div class="col-sm-6 col-lg-3">';
+    echo '<div class="card card-sm">';
+    echo '<div class="card-body d-flex align-items-center">';
+    echo '<span class="avatar avatar-rounded bg-' . $indicator['color'] . '-lt me-3">'
+        . '<i class="ti ' . $indicator['icon'] . ' fs-2"></i></span>';
+    echo '<div>';
+    echo '<div class="fs-2 fw-bold lh-1">' . htmlescape((string) $indicator['value']) . '</div>';
+    echo '<div class="text-muted">' . htmlescape($indicator['label']) . '</div>';
+    echo '</div>';
+    echo '</div>'; // card-body
+    echo '</div>'; // card
+    echo '</div>'; // col
+}
+echo '</div>'; // row
+
+echo '<h3 class="mb-2"><i class="ti ti-list-details me-2"></i>' . __('Chamados pesquisados', 'satisfacao') . '</h3>';
 
 Search::show(SurveyTicket::class);
 

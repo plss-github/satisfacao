@@ -254,7 +254,9 @@ class Question extends CommonDBTM
         echo '</tr>';
 
         echo '<tr class="tab_bg_1">';
-        echo '<td>' . __('Opções (uma por linha, só para caixa de seleção e lista)', 'satisfacao') . '</td>';
+        echo '<td>' . __('Opções (uma por linha, só para caixa de seleção e lista)', 'satisfacao')
+            . Menu::helpIcon(__('Cada linha vira uma opção selecionável. Vale só para os tipos "Caixa de seleção" e "Lista suspensa".', 'satisfacao'))
+            . '</td>';
         echo '<td colspan="3">';
         echo '<textarea name="options_raw" rows="4" style="width:100%">';
         echo htmlescape(implode("\n", $this->getOptionsArray()));
@@ -263,13 +265,14 @@ class Question extends CommonDBTM
         echo '</tr>';
 
         echo '<tr class="tab_bg_1">';
-        echo '<td>' . __('Opção que libera campo de comentário livre', 'satisfacao') . '</td>';
+        echo '<td>' . __('Opção que libera campo de comentário livre', 'satisfacao')
+            . Menu::helpIcon(__(
+                'Só pra caixa de seleção e lista. Cole aqui o texto exato de uma das opções acima (ex: "OUTROS, por favor comente."); ao marcar/selecionar essa opção, aparece uma caixa de texto livre pro respondente comentar. Deixe em branco se nenhuma opção precisar disso.',
+                'satisfacao'
+            ))
+            . '</td>';
         echo '<td colspan="3">';
         echo Html::input('other_option_label', ['value' => $this->fields['other_option_label'] ?? '', 'size' => 60]);
-        echo '<div class="text-muted mt-1">' . __(
-            'Só pra caixa de seleção e lista. Cole aqui o texto exato de uma das opções acima (ex: "OUTROS, por favor comente."); ao marcar/selecionar essa opção, aparece uma caixa de texto livre pro respondente comentar. Deixe em branco se nenhuma opção precisar disso.',
-            'satisfacao'
-        ) . '</div>';
         echo '</td>';
         echo '</tr>';
 
