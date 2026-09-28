@@ -155,7 +155,7 @@ class SurveyTicket extends CommonDBTM
             return '';
         }
 
-        return __('Pesquisa de satisfação', 'satisfacao');
+        return self::createTabEntry(__('Pesquisa de satisfação', 'satisfacao'), 0, null, 'ti ti-star');
     }
 
     public static function displayTabContentForItem(CommonGLPI $item, $tabnum = 1, $withtemplate = 0)
