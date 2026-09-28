@@ -10,7 +10,7 @@
  * -------------------------------------------------------------------------
  */
 
-define('PLUGIN_SATISFACAO_VERSION', '1.1.2');
+define('PLUGIN_SATISFACAO_VERSION', '1.1.3');
 define('PLUGIN_SATISFACAO_MIN_GLPI', '11.0');
 define('PLUGIN_SATISFACAO_MAX_GLPI', '11.9.99');
 
@@ -19,6 +19,13 @@ define('PLUGIN_SATISFACAO_MAX_GLPI', '11.9.99');
 // `/plugins/` path"). Usada nos front/*.php e no formulário da pesquisa.
 global $CFG_GLPI;
 define('PLUGIN_SATISFACAO_WEBDIR', ($CFG_GLPI['root_doc'] ?? '') . '/plugins/satisfacao');
+
+// Nome fixo da notificação criada pelo plugin (hook.php). Usado como
+// critério extra, junto de itemtype+event, pra identificar "nossa"
+// notificação em instalação/desinstalação sem mexer em outras
+// notificações que o admin porventura crie pro mesmo evento — ver
+// plugin_satisfacao_install_notification()/_uninstall_notification().
+define('PLUGIN_SATISFACAO_NOTIFICATION_NAME', 'Pesquisa de satisfação disponível');
 
 /**
  * Init hooks of the plugin.

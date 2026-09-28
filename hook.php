@@ -196,15 +196,27 @@ function plugin_satisfacao_uninstall()
 /**
  * Cria, se ainda não existir, a notificação padrão (evento
  * "satisfacao_survey" em Ticket) disparada quando o plugin gera uma
- * pesquisa. Idempotente: não faz nada se já existir uma notificação pra
- * esse par (itemtype, event) — evita duplicar em reinstalação/update.
+ * pesquisa. Idempotente: não faz nada se "nossa" notificação (identificada
+ * por itemtype+event+name) já existir — evita duplicar em
+ * reinstalação/update. Usa `find()` (não `getFromDBByCrit()`) de
+ * propósito: um admin pode criar outras notificações pro mesmo evento
+ * (ex: uma cópia apontando pro admin), e `getFromDBByCrit()` lança
+ * exceção assim que há mais de uma linha batendo no critério — o que
+ * quebrava a instalação/atualização do plugin nesse cenário.
  *
  * @return void
  */
 function plugin_satisfacao_install_notification(): void
 {
     $existing = new \Notification();
-    if ($existing->getFromDBByCrit(['itemtype' => 'Ticket', 'event' => 'satisfacao_survey'])) {
+    $criteria = [
+        'itemtype' => 'Ticket',
+        'event'    => 'satisfacao_survey',
+        'name'     => PLUGIN_SATISFACAO_NOTIFICATION_NAME,
+    ];
+    $rows = $existing->find($criteria);
+    if (!empty($rows)) {
+        $existing->getFromDB((int) reset($rows)['id']);
         // Já existe (instalação anterior) — só garante que o destinatário
         // "Solicitante" está configurado, caso essa instalação seja de
         // antes dessa correção (a notificação existia sem destinatário).
@@ -220,7 +232,7 @@ function plugin_satisfacao_install_notification(): void
 
     $template = new \NotificationTemplate();
     $templates_id = $template->add([
-        'name'     => 'Pesquisa de satisfação disponível',
+        'name'     => PLUGIN_SATISFACAO_NOTIFICATION_NAME,
         'itemtype' => 'Ticket',
         'comment'  => 'Criado automaticamente pelo plugin Pesquisa de Satisfação.',
     ]);
@@ -245,7 +257,7 @@ function plugin_satisfacao_install_notification(): void
 
     $notification = new \Notification();
     $notifications_id = $notification->add([
-        'name'         => 'Pesquisa de satisfação disponível',
+        'name'         => PLUGIN_SATISFACAO_NOTIFICATION_NAME,
         'entities_id'  => 0,
         'is_recursive' => 1,
         'itemtype'     => 'Ticket',
@@ -285,7 +297,16 @@ function plugin_satisfacao_install_notification(): void
 function plugin_satisfacao_uninstall_notification(): void
 {
     $notification = new \Notification();
-    foreach ($notification->find(['itemtype' => 'Ticket', 'event' => 'satisfacao_survey']) as $row) {
+    // Filtra também por 'name': se o admin criou outra notificação pro
+    // mesmo evento (ex: uma cópia apontando pro admin), ela não deve ser
+    // apagada na desinstalação — só "nossa" notificação, identificada
+    // pelo nome fixo que o plugin usa.
+    $criteria = [
+        'itemtype' => 'Ticket',
+        'event'    => 'satisfacao_survey',
+        'name'     => PLUGIN_SATISFACAO_NOTIFICATION_NAME,
+    ];
+    foreach ($notification->find($criteria) as $row) {
         $templates_id = null;
 
         $link = new \Notification_NotificationTemplate();
