@@ -316,7 +316,13 @@ class SurveyTicket extends CommonDBTM
                         . '</label>';
 
                     if ($is_other) {
-                        $show = (!$editable || $checked) ? 'block' : 'none';
+                        // Mostra a caixa de comentário se a opção "outros" está
+                        // marcada — vale tanto editável (resposta já marcada
+                        // antes de recarregar) quanto somente-leitura (resposta
+                        // salva). Sem depender de $editable: antes disso, a
+                        // caixa aparecia sempre no modo somente-leitura, mesmo
+                        // quando "outros" nunca foi marcado.
+                        $show = $checked ? 'block' : 'none';
                         echo "<div id=\"{$other_id}\" style=\"display:{$show}; margin: 2px 0 8px 24px;\">";
                         echo "<textarea name=\"{$name}_other\" rows=\"2\" style=\"width:100%\" placeholder=\""
                             . __('Comente aqui', 'satisfacao') . "\" {$disabled}>"
@@ -331,9 +337,19 @@ class SurveyTicket extends CommonDBTM
                 $decoded        = self::decodeChoiceAnswer($value);
                 $selected_value = (string) $decoded['selected'];
                 $other_id       = 'satisfacao_other_' . $qid;
-                $onchange       = ($has_other_option && $editable)
-                    ? " onchange=\"document.getElementById('{$other_id}').style.display=(this.value===" . json_encode($other_label, JSON_UNESCAPED_UNICODE) . ")?'block':'none';\""
-                    : '';
+                $onchange = '';
+                if ($has_other_option && $editable) {
+                    // json_encode() envolve strings em aspas duplas — como o
+                    // atributo HTML também usa aspas duplas, embutir o valor
+                    // cru quebrava o atributo no meio (o resto virava lixo,
+                    // o onchange nunca era interpretado pelo navegador).
+                    // htmlescape() converte as aspas em &quot;, que o HTML
+                    // decodifica de volta corretamente antes de rodar o JS.
+                    $other_label_js = json_encode($other_label, JSON_UNESCAPED_UNICODE);
+                    $onchange = ' onchange="' . htmlescape(
+                        "document.getElementById('{$other_id}').style.display=(this.value==={$other_label_js})?'block':'none';"
+                    ) . '"';
+                }
 
                 echo "<select name=\"{$name}\" {$disabled}{$onchange}>";
                 echo '<option value="">-- ' . __('Selecione', 'satisfacao') . ' --</option>';
@@ -345,7 +361,9 @@ class SurveyTicket extends CommonDBTM
                 echo '</select>';
 
                 if ($has_other_option) {
-                    $show = (!$editable || $selected_value === $other_label) ? 'block' : 'none';
+                    // Mesmo raciocínio do checkbox acima: mostra só quando a
+                    // opção "outros" está de fato selecionada, em qualquer modo.
+                    $show = ($selected_value === $other_label) ? 'block' : 'none';
                     echo "<div id=\"{$other_id}\" style=\"display:{$show}; margin-top:4px;\">";
                     echo "<textarea name=\"{$name}_other\" rows=\"2\" style=\"width:100%\" placeholder=\""
                         . __('Comente aqui', 'satisfacao') . "\" {$disabled}>"
