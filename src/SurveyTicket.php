@@ -5,6 +5,7 @@ namespace GlpiPlugin\Satisfacao;
 use CommonDBTM;
 use CommonGLPI;
 use CommonITILActor;
+use Dropdown;
 use Entity;
 use Html;
 use NotificationEvent;
@@ -21,6 +22,7 @@ class SurveyTicket extends CommonDBTM
 
     public const STATUS_TO_ANSWER = 1;
     public const STATUS_ANSWERED  = 2;
+    public const STATUS_EXPIRED   = 3;
 
     public static function getTypeName($nb = 0)
     {
@@ -72,6 +74,122 @@ class SurveyTicket extends CommonDBTM
             // ativa na mesma entidade — ver README).
             NotificationEvent::raiseEvent('satisfacao_survey', $ticket);
         }
+    }
+
+    /**
+     * Data/hora limite pra responder a pesquisa (fechamento do chamado +
+     * prazo de validade configurado na entidade), ou `null` se a entidade
+     * não tem prazo configurado (0 = sem expiração).
+     *
+     * @return string|null Formato `Y-m-d H:i:s`.
+     */
+    public function getExpirationDate(): ?string
+    {
+        if (empty($this->fields['date_begin'])) {
+            return null;
+        }
+
+        $validity_days = SurveySettings::getForEntity((int) $this->fields['entities_id'])->getValidityDays();
+        if ($validity_days <= 0) {
+            return null;
+        }
+
+        return date('Y-m-d H:i:s', strtotime($this->fields['date_begin']) + ($validity_days * 86400));
+    }
+
+    /**
+     * Indica se o prazo pra responder a pesquisa já venceu. Uma pesquisa
+     * já respondida nunca é considerada expirada.
+     *
+     * @return boolean
+     */
+    public function isExpired(): bool
+    {
+        $status = (int) $this->fields['status'];
+
+        if ($status === self::STATUS_ANSWERED) {
+            return false;
+        }
+
+        if ($status === self::STATUS_EXPIRED) {
+            return true;
+        }
+
+        $expiration = $this->getExpirationDate();
+
+        return $expiration !== null && strtotime($expiration) < time();
+    }
+
+    /**
+     * Descrição da ação automática exibida em Configurar > Ações
+     * automáticas.
+     *
+     * @param string $name
+     *
+     * @return array
+     */
+    public static function cronInfo($name)
+    {
+        switch ($name) {
+            case 'satisfacaoexpire':
+                return [
+                    'description' => __('Marca como expiradas as pesquisas de satisfação vencidas', 'satisfacao'),
+                ];
+        }
+        return [];
+    }
+
+    /**
+     * Ação automática: persiste `status = STATUS_EXPIRED` nas pesquisas
+     * pendentes cujo prazo de validade (configurado por entidade em
+     * `SurveySettings`) já venceu. `isExpired()`/`showSurvey()`/
+     * `ajax/answer.php` já bloqueiam a resposta em tempo real assim que o
+     * prazo vence (sem depender do cron); esta ação serve pra manter a
+     * coluna "Situação" persistida e filtrável na busca/relatórios (ver
+     * `getSpecificValueToSelect()`), já que o motor de busca do GLPI
+     * filtra pelo valor gravado no banco, não por um cálculo dinâmico.
+     *
+     * @param \CronTask|null $task
+     *
+     * @return integer 0 ou 1 (padrão de retorno de ação automática do GLPI)
+     */
+    public static function cronSatisfacaoExpire($task = null): int
+    {
+        global $DB;
+
+        $iterator = $DB->request([
+            'SELECT'    => ['st.id'],
+            'FROM'      => self::getTable() . ' AS st',
+            'LEFT JOIN' => [
+                SurveySettings::getTable() . ' AS ss' => [
+                    'ON' => [
+                        'ss' => 'entities_id',
+                        'st' => 'entities_id',
+                    ],
+                ],
+            ],
+            'WHERE' => [
+                'st.status' => self::STATUS_TO_ANSWER,
+                new \Glpi\DBAL\QueryExpression('COALESCE(ss.validity_days, 0) > 0'),
+                new \Glpi\DBAL\QueryExpression(
+                    'DATE_ADD(st.date_begin, INTERVAL COALESCE(ss.validity_days, 0) DAY) < NOW()'
+                ),
+            ],
+        ]);
+
+        $count = 0;
+        foreach ($iterator as $row) {
+            $survey = new self();
+            if ($survey->update(['id' => $row['id'], 'status' => self::STATUS_EXPIRED])) {
+                $count++;
+            }
+        }
+
+        if ($task !== null) {
+            $task->addVolume($count);
+        }
+
+        return $count > 0 ? 1 : 0;
     }
 
     /**
@@ -186,7 +304,8 @@ class SurveyTicket extends CommonDBTM
     {
         $answered     = (int) $this->fields['status'] === self::STATUS_ANSWERED;
         $is_requester = $ticket->isUser(CommonITILActor::REQUESTER, Session::getLoginUserID());
-        $editable     = !$answered && $is_requester;
+        $expired      = $this->isExpired();
+        $editable     = !$answered && $is_requester && !$expired;
 
         $questions = (new Question())->find(
             ['entities_id' => $this->fields['entities_id'], 'is_active' => 1],
@@ -195,6 +314,16 @@ class SurveyTicket extends CommonDBTM
 
         if (empty($questions)) {
             echo '<div class="alert alert-info">' . __('Nenhuma pergunta configurada.', 'satisfacao') . '</div>';
+            return;
+        }
+
+        if (!$answered && $expired) {
+            echo '<div class="alert alert-warning">'
+                . sprintf(
+                    __('Esta pesquisa expirou em %s e não pode mais ser respondida.', 'satisfacao'),
+                    Html::convDateTime($this->getExpirationDate())
+                )
+                . '</div>';
             return;
         }
 
@@ -209,6 +338,15 @@ class SurveyTicket extends CommonDBTM
 
         if ($editable && !empty($settings->fields['header_message'])) {
             echo '<div class="alert alert-info">' . nl2br(htmlescape($settings->fields['header_message'])) . '</div>';
+        }
+
+        if ($editable) {
+            $expiration = $this->getExpirationDate();
+            if ($expiration !== null) {
+                echo '<div class="text-muted mb-2">'
+                    . sprintf(__('Disponível para resposta até %s.', 'satisfacao'), Html::convDateTime($expiration))
+                    . '</div>';
+            }
         }
 
         $existing_answers = [];
@@ -437,12 +575,15 @@ class SurveyTicket extends CommonDBTM
         ];
 
         $tab[] = [
-            'id'         => '4',
-            'table'      => self::getTable(),
-            'field'      => 'status',
-            'name'       => __('Situação', 'satisfacao'),
-            'datatype'   => 'specific',
-            'searchtype' => 'equals',
+            'id'               => '4',
+            'table'            => self::getTable(),
+            'field'            => 'status',
+            'name'             => __('Situação', 'satisfacao'),
+            'datatype'         => 'specific',
+            'searchtype'       => 'equals',
+            // Necessário em getSpecificValueToDisplay() pra saber se uma
+            // pesquisa pendente já passou do prazo de validade da entidade.
+            'additionalfields' => ['date_begin', 'entities_id'],
         ];
 
         $tab[] = [
@@ -471,12 +612,83 @@ class SurveyTicket extends CommonDBTM
     public static function getSpecificValueToDisplay($field, $values, array $options = [])
     {
         if ($field === 'status') {
+            $status = (int) $values['status'];
+
+            // Cobre tanto o status já persistido pelo cron
+            // (`cronSatisfacaoExpire()`) quanto o intervalo entre o
+            // vencimento e a próxima execução do cron (até 1h de atraso),
+            // calculado na hora a partir de date_begin/entities_id.
+            if ($status === self::STATUS_EXPIRED || ($status === self::STATUS_TO_ANSWER && self::isExpiredByValues($values))) {
+                return __('Expirada', 'satisfacao');
+            }
+
             $labels = [
                 self::STATUS_TO_ANSWER => __('Aguardando resposta', 'satisfacao'),
                 self::STATUS_ANSWERED  => __('Respondida', 'satisfacao'),
+                self::STATUS_EXPIRED   => __('Expirada', 'satisfacao'),
             ];
-            return $labels[$values['status']] ?? $values['status'];
+            return $labels[$status] ?? $values['status'];
         }
         return parent::getSpecificValueToDisplay($field, $values, $options);
+    }
+
+    /**
+     * Input do critério de busca/ação em massa pra "Situação" — sem isso,
+     * mesmo com `datatype => specific`, o motor de busca cai no input de
+     * texto livre padrão (e digitar "Aguardando resposta"/"Respondida"
+     * nunca bate com o valor numérico gravado no banco).
+     *
+     * @param string       $field
+     * @param string       $name
+     * @param string|array $values
+     * @param array        $options
+     *
+     * @return string
+     */
+    public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
+    {
+        if ($field === 'status') {
+            if (!is_array($values)) {
+                $values = [$field => $values];
+            }
+
+            $options['name']               = $name;
+            $options['value']              = $values[$field] ?? '';
+            $options['display']            = false;
+            $options['display_emptychoice'] = true;
+
+            $labels = [
+                self::STATUS_TO_ANSWER => __('Aguardando resposta', 'satisfacao'),
+                self::STATUS_ANSWERED  => __('Respondida', 'satisfacao'),
+                self::STATUS_EXPIRED   => __('Expirada', 'satisfacao'),
+            ];
+
+            return Dropdown::showFromArray($name, $labels, $options);
+        }
+        return parent::getSpecificValueToSelect($field, $name, $values, $options);
+    }
+
+    /**
+     * Verifica expiração a partir de uma linha de resultado de busca
+     * (contexto estático de `getSpecificValueToDisplay()`, sem instância
+     * carregada) — usa `date_begin`/`entities_id` trazidos via
+     * `additionalfields` na coluna "Situação" de `rawSearchOptions()`.
+     *
+     * @param array $values
+     *
+     * @return boolean
+     */
+    private static function isExpiredByValues(array $values): bool
+    {
+        if (empty($values['date_begin']) || !isset($values['entities_id'])) {
+            return false;
+        }
+
+        $validity_days = SurveySettings::getForEntity((int) $values['entities_id'])->getValidityDays();
+        if ($validity_days <= 0) {
+            return false;
+        }
+
+        return (strtotime($values['date_begin']) + ($validity_days * 86400)) < time();
     }
 }

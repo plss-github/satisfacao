@@ -54,6 +54,33 @@ para o(s) solicitante(s), uma única vez por chamado.
   — e uma listagem (motor de busca nativo do GLPI: filtro, ordenação e
   exportação CSV/PDF) de cada chamado pesquisado, com acesso ao
   detalhe das respostas.
+- **Prazo de validade da pesquisa**, também em **Mensagens** (seção
+  "Prazo de validade"), por entidade: quantidade de dias, a partir do
+  fechamento do chamado, em que a pesquisa fica disponível para
+  resposta. Passado o prazo, a pesquisa (aba, timeline e formulário de
+  envio) para de aceitar resposta e passa a exibir uma mensagem de
+  "expirada"; o bloqueio vale tanto na tela (`SurveyTicket::showSurvey()`)
+  quanto no envio (`ajax/answer.php`), pra cobrir quem já tinha o
+  formulário aberto antes de vencer. `0` (padrão) = sem prazo, nunca
+  expira — comportamento igual ao de antes dessa funcionalidade existir.
+  O bloqueio em si (`isExpired()`) é calculado na hora, então é imediato
+  assim que o prazo vence, sem depender de cron. Além disso, "Expirada"
+  é um terceiro valor real de `status` (`STATUS_EXPIRED = 3`, ao lado de
+  "Aguardando resposta"/"Respondida"), **filtrável** na coluna "Situação"
+  da tela de Resultados (`SurveyTicket::getSpecificValueToSelect()`) e
+  contado num indicador dedicado ("Pesquisas expiradas (sem resposta)").
+  Uma ação automática (`SurveyTicket::cronSatisfacaoExpire()`, registrada
+  como `satisfacaoexpire`, frequência padrão 1h) persiste essa transição
+  em segundo plano — necessário porque o motor de busca do GLPI filtra
+  pelo valor gravado no banco, não por um cálculo dinâmico; a tela de
+  Resultados também cobre visualmente o intervalo entre o vencimento e a
+  próxima execução do cron. A instalação/atualização do plugin já roda
+  essa expiração uma vez, então pesquisas vencidas de antes dessa
+  funcionalidade aparecem corretas sem esperar o cron. A view de BI
+  (`glpi_plugin_satisfacao_vw_answers`) também ganhou as colunas
+  `survey_validity_days`, `survey_expires_at` e `survey_is_expired`.
+  Implementado em `SurveySettings::getValidityDays()` +
+  `SurveyTicket::isExpired()`/`getExpirationDate()`/`cronSatisfacaoExpire()`.
 - **Critérios de exclusão de disparo**, também em **Mensagens** (seção
   "Não gerar pesquisa quando"), por entidade: origem da requisição
   (`RequestType`, ex: um tipo dedicado a chamados abertos por ferramenta
@@ -389,5 +416,17 @@ correções abaixo só apareceram testando contra uma instância de verdade:
   resultados para outro perfil sem dar acesso total de configuração.
 - Critérios de exclusão de disparo cobrem origem da requisição,
   categoria, solicitante e grupo do solicitante — não há (ainda) opção
-  de excluir por tipo de chamado (Incidente x Requisição) nem um lembrete
-  automático (cron) para pesquisas pendentes há muito tempo.
+  de excluir por tipo de chamado (Incidente x Requisição), nem um
+  lembrete (notificação) automático para pesquisas pendentes há muito
+  tempo (existe agora uma ação automática, `satisfacaoexpire`, mas ela só
+  atualiza o status pra "Expirada" — não envia notificação nenhuma).
+- **Prazo de validade validado em produção** (bloqueio de resposta,
+  mensagem de expirada, indicador e coluna "Situação" filtrável). **A
+  ação automática `satisfacaoexpire`** (que persiste `status =
+  STATUS_EXPIRED`, necessária pro filtro por "Expirada" funcionar) **foi
+  adicionada depois, ainda sem confirmação de uma execução real do cron**
+  (interno, via `front/cron.php`, ou `bin/console cron:configure`/
+  `cron:run`) — o bloqueio de resposta e a mensagem de "expirada" não
+  dependem dela (cálculo em tempo real via `isExpired()`), mas a
+  aparição em Configurar > Ações automáticas e a filtragem correta por
+  "Expirada" na busca merecem um teste de ponta a ponta.

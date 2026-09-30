@@ -224,6 +224,35 @@ class Question extends CommonDBTM
         return parent::getSpecificValueToDisplay($field, $values, $options);
     }
 
+    /**
+     * Input do critério de busca/ação em massa pra "Tipo de campo" — sem
+     * isso, mesmo com `datatype => specific`, o motor de busca cai no
+     * input de texto livre padrão em vez de listar os tipos.
+     *
+     * @param string       $field
+     * @param string       $name
+     * @param string|array $values
+     * @param array        $options
+     *
+     * @return string
+     */
+    public static function getSpecificValueToSelect($field, $name = '', $values = '', array $options = [])
+    {
+        if ($field === 'type') {
+            if (!is_array($values)) {
+                $values = [$field => $values];
+            }
+
+            $options['name']                = $name;
+            $options['value']               = $values[$field] ?? '';
+            $options['display']             = false;
+            $options['display_emptychoice'] = true;
+
+            return Dropdown::showFromArray($name, self::getTypes(), $options);
+        }
+        return parent::getSpecificValueToSelect($field, $name, $values, $options);
+    }
+
     public function showForm($ID, array $options = [])
     {
         $this->initForm($ID, $options);

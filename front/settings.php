@@ -21,7 +21,8 @@ if (isset($_POST['save'])) {
         $to_id_array($_POST['excluded_requesttypes'] ?? []),
         $to_id_array($_POST['excluded_categories'] ?? []),
         $to_id_array($_POST['excluded_users'] ?? []),
-        $to_id_array($_POST['excluded_groups'] ?? [])
+        $to_id_array($_POST['excluded_groups'] ?? []),
+        max(0, (int) ($_POST['validity_days'] ?? 0))
     );
     Session::addMessageAfterRedirect(__('Mensagens salvas.', 'satisfacao'));
     Html::redirect(PLUGIN_SATISFACAO_WEBDIR . '/front/settings.php');
@@ -69,6 +70,30 @@ echo '<td>';
 echo '<textarea name="thankyou_message" rows="3" style="width:100%" placeholder="' . __('Ex: Obrigado por avaliar nosso atendimento!', 'satisfacao') . '">'
     . htmlescape((string) ($settings->fields['thankyou_message'] ?? ''))
     . '</textarea>';
+echo '</td>';
+echo '</tr>';
+
+echo '</table>';
+echo '</div>'; // card-body
+echo '</div>'; // card
+
+echo '<div class="card mb-4">';
+echo '<div class="card-header"><h3 class="card-title"><i class="ti ti-hourglass me-2"></i>'
+    . __('Prazo de validade', 'satisfacao') . '</h3></div>';
+echo '<div class="card-body">';
+echo '<table class="tab_cadre_fixe">';
+
+echo '<tr class="tab_bg_1">';
+echo '<td style="width: 25%">' . __('Quantidade de dias disponível para resposta', 'satisfacao')
+    . Menu::helpIcon(__('Quantidade de dias, a partir do fechamento do chamado, em que a pesquisa fica disponível para o solicitante responder. Depois desse prazo, a pesquisa passa a exibir uma mensagem de expirada e não pode mais ser respondida. Deixe em 0 para não expirar.', 'satisfacao'))
+    . '</td>';
+echo '<td>';
+Dropdown::showNumber('validity_days', [
+    'value' => (int) ($settings->fields['validity_days'] ?? 0),
+    'min'   => 0,
+    'max'   => 3650,
+    'step'  => 1,
+]);
 echo '</td>';
 echo '</tr>';
 

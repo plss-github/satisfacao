@@ -32,6 +32,15 @@ if ((int) $survey->fields['status'] === SurveyTicket::STATUS_ANSWERED) {
     Html::redirect($redirect_url);
 }
 
+if ($survey->isExpired()) {
+    Session::addMessageAfterRedirect(
+        __('O prazo para responder esta pesquisa expirou.', 'satisfacao'),
+        false,
+        ERROR
+    );
+    Html::redirect($redirect_url);
+}
+
 if (!$ticket->isUser(CommonITILActor::REQUESTER, Session::getLoginUserID())) {
     throw new AccessDeniedHttpException();
 }

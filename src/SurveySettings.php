@@ -78,6 +78,9 @@ class SurveySettings extends CommonDBTM
      * @param int[]       $excluded_categories   IDs de ITILCategory a excluir.
      * @param int[]       $excluded_users        IDs de usuário (solicitante) a excluir.
      * @param int[]       $excluded_groups       IDs de grupo (solicitante) a excluir.
+     * @param integer     $validity_days         Quantidade de dias que a pesquisa fica disponível
+     *                                            para resposta a partir do fechamento do chamado
+     *                                            (`date_begin`). 0 = sem prazo (nunca expira).
      *
      * @return void
      */
@@ -88,7 +91,8 @@ class SurveySettings extends CommonDBTM
         array $excluded_requesttypes = [],
         array $excluded_categories = [],
         array $excluded_users = [],
-        array $excluded_groups = []
+        array $excluded_groups = [],
+        int $validity_days = 0
     ): void {
         $header_message   = ($header_message !== null && trim($header_message) !== '') ? $header_message : null;
         $thankyou_message = ($thankyou_message !== null && trim($thankyou_message) !== '') ? $thankyou_message : null;
@@ -100,6 +104,7 @@ class SurveySettings extends CommonDBTM
             'excluded_categories'   => self::encodeIdList($excluded_categories),
             'excluded_users'        => self::encodeIdList($excluded_users),
             'excluded_groups'       => self::encodeIdList($excluded_groups),
+            'validity_days'         => max(0, $validity_days),
         ];
 
         $settings = new self();
@@ -153,6 +158,18 @@ class SurveySettings extends CommonDBTM
      *
      * @return array{requesttypes: int[], categories: int[], users: int[], groups: int[]}
      */
+    /**
+     * Quantidade de dias que a pesquisa fica disponível para resposta a
+     * partir do fechamento do chamado. 0 = sem prazo (nunca expira),
+     * comportamento igual ao de antes dessa funcionalidade existir.
+     *
+     * @return integer
+     */
+    public function getValidityDays(): int
+    {
+        return max(0, (int) ($this->fields['validity_days'] ?? 0));
+    }
+
     public function getExclusions(): array
     {
         return [

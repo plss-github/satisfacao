@@ -85,6 +85,7 @@ function plugin_satisfacao_install()
                 `excluded_categories` text DEFAULT NULL,
                 `excluded_users` text DEFAULT NULL,
                 `excluded_groups` text DEFAULT NULL,
+                `validity_days` int unsigned NOT NULL DEFAULT 0,
                 `date_creation` timestamp NULL DEFAULT NULL,
                 `date_mod` timestamp NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
@@ -103,12 +104,50 @@ function plugin_satisfacao_install()
                 ) or die($DB->error());
             }
         }
+
+        // Instalação existente de antes do prazo de validade da pesquisa —
+        // adiciona a coluna (0 = sem expiração, mantém o comportamento
+        // anterior).
+        if (!$DB->fieldExists('glpi_plugin_satisfacao_surveysettings', 'validity_days')) {
+            $DB->doQuery(
+                "ALTER TABLE `glpi_plugin_satisfacao_surveysettings`
+                    ADD COLUMN `validity_days` int unsigned NOT NULL DEFAULT 0;"
+            ) or die($DB->error());
+        }
     }
 
     plugin_satisfacao_install_notification();
     plugin_satisfacao_install_view();
+    plugin_satisfacao_install_crontask();
+
+    // Roda a expiração uma vez na instalação/atualização, pra já refletir
+    // pesquisas vencidas na busca/relatórios sem esperar a 1ª execução do
+    // cron (até 1h de atraso, ver frequência registrada acima).
+    SurveyTicket::cronSatisfacaoExpire();
 
     return true;
+}
+
+/**
+ * Registra (se ainda não existir) a ação automática que marca pesquisas
+ * pendentes vencidas como expiradas. `CronTask::register()` já é
+ * idempotente (não duplica em reinstalação/atualização) e o
+ * desregistro na desinstalação é automático (feito pelo core quando o
+ * plugin é limpo/desinstalado).
+ *
+ * @return void
+ */
+function plugin_satisfacao_install_crontask(): void
+{
+    \CronTask::register(
+        SurveyTicket::class,
+        'satisfacaoexpire',
+        HOUR_TIMESTAMP,
+        [
+            'comment' => __('Marca como expiradas as pesquisas de satisfação vencidas.', 'satisfacao'),
+            'mode'    => \CronTask::MODE_INTERNAL,
+        ]
+    );
 }
 
 /**
@@ -136,11 +175,28 @@ function plugin_satisfacao_install_view(): void
             st.date_begin            AS ticket_closed_date,
             st.date_answered         AS survey_answered_date,
             st.status                AS survey_status,
-            (CASE st.status
-                WHEN 1 THEN 'Aguardando resposta'
-                WHEN 2 THEN 'Respondida'
+            (CASE
+                WHEN st.status = 3 THEN 'Expirada'
+                WHEN st.status = 1 AND COALESCE(ss.validity_days, 0) > 0
+                     AND DATE_ADD(st.date_begin, INTERVAL COALESCE(ss.validity_days, 0) DAY) < NOW()
+                    THEN 'Expirada'
+                WHEN st.status = 1 THEN 'Aguardando resposta'
+                WHEN st.status = 2 THEN 'Respondida'
                 ELSE NULL
             END)                     AS survey_status_label,
+            COALESCE(ss.validity_days, 0) AS survey_validity_days,
+            (CASE
+                WHEN COALESCE(ss.validity_days, 0) > 0
+                    THEN DATE_ADD(st.date_begin, INTERVAL COALESCE(ss.validity_days, 0) DAY)
+                ELSE NULL
+            END)                     AS survey_expires_at,
+            (CASE
+                WHEN st.status = 3 THEN 1
+                WHEN st.status = 1 AND COALESCE(ss.validity_days, 0) > 0
+                     AND DATE_ADD(st.date_begin, INTERVAL COALESCE(ss.validity_days, 0) DAY) < NOW()
+                    THEN 1
+                ELSE 0
+            END)                     AS survey_is_expired,
             st.users_id_answered     AS answered_by_users_id,
             ua.name                  AS answered_by_login,
             q.id                     AS question_id,
@@ -164,7 +220,8 @@ function plugin_satisfacao_install_view(): void
         INNER JOIN `glpi_plugin_satisfacao_questions` q ON q.id = a.plugin_satisfacao_questions_id
         INNER JOIN `glpi_tickets` t ON t.id = st.tickets_id
         LEFT JOIN `glpi_entities` e ON e.id = st.entities_id
-        LEFT JOIN `glpi_users` ua ON ua.id = st.users_id_answered;"
+        LEFT JOIN `glpi_users` ua ON ua.id = st.users_id_answered
+        LEFT JOIN `glpi_plugin_satisfacao_surveysettings` ss ON ss.entities_id = st.entities_id;"
     ) or die($DB->error());
 }
 
