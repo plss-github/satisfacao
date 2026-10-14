@@ -201,11 +201,48 @@ class SurveyTicket extends CommonDBTM
      */
     public static function getForTicket(int $tickets_id): ?self
     {
-        $survey = new self();
-        if ($survey->getFromDBByCrit(['tickets_id' => $tickets_id])) {
-            return $survey;
+        // Cache por requisição: a mesma tela de chamado consulta a pesquisa
+        // várias vezes (nome da aba, timeline, conteúdo da aba e cada
+        // notificação gerada). Guarda `null` também, pra não repetir a busca
+        // em chamados sem pesquisa (a grande maioria).
+        if (!array_key_exists($tickets_id, self::$cache_by_ticket)) {
+            $survey = new self();
+            self::$cache_by_ticket[$tickets_id] = $survey->getFromDBByCrit(['tickets_id' => $tickets_id])
+                ? $survey->fields
+                : null;
         }
-        return null;
+
+        $fields = self::$cache_by_ticket[$tickets_id];
+        if ($fields === null) {
+            return null;
+        }
+
+        $survey = new self();
+        $survey->fields = $fields;
+        return $survey;
+    }
+
+    /** @var array<int, array|null> tickets_id => campos da pesquisa (ou null se não houver) */
+    private static array $cache_by_ticket = [];
+
+    private function forgetCachedTicket(): void
+    {
+        unset(self::$cache_by_ticket[(int) ($this->fields['tickets_id'] ?? 0)]);
+    }
+
+    public function post_addItem()
+    {
+        $this->forgetCachedTicket();
+    }
+
+    public function post_updateItem($history = true)
+    {
+        $this->forgetCachedTicket();
+    }
+
+    public function post_purgeItem()
+    {
+        $this->forgetCachedTicket();
     }
 
     /**
@@ -256,10 +293,15 @@ class SurveyTicket extends CommonDBTM
      */
     public static function renderTimelineEntry(int $survey_id, Ticket $ticket): void
     {
-        $survey = new self();
-        if ($survey->getFromDB($survey_id)) {
-            $survey->showSurvey($ticket);
+        // Reaproveita o cache por chamado (a timeline já carregou a pesquisa).
+        $survey = self::getForTicket((int) $ticket->getID());
+        if ($survey === null || (int) $survey->getID() !== $survey_id) {
+            $survey = new self();
+            if (!$survey->getFromDB($survey_id)) {
+                return;
+            }
         }
+        $survey->showSurvey($ticket);
     }
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)

@@ -448,6 +448,11 @@ function plugin_satisfacao_timeline_items(array $params): void
             'date_creation'     => $survey->fields['date_begin'],
             'timeline_position' => \CommonITILObject::TIMELINE_LEFT,
             'can_edit'          => false,
+            // Lido pelo core ao montar notificações (##timelineitems.description##);
+            // sem a chave, cada notificação do chamado gera um warning com backtrace no log.
+            'content'           => (int) $survey->fields['status'] === SurveyTicket::STATUS_ANSWERED
+                ? __('Pesquisa de satisfação respondida', 'satisfacao')
+                : __('Pesquisa de satisfação disponível', 'satisfacao'),
         ],
         'object' => $survey,
     ];
