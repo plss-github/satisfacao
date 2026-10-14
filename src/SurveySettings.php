@@ -59,12 +59,33 @@ class SurveySettings extends CommonDBTM
      */
     public static function getForEntity(int $entities_id): self
     {
-        $settings = new self();
-        if (!$settings->getFromDBByCrit(['entities_id' => $entities_id])) {
-            $settings->getEmpty();
-            $settings->fields['entities_id'] = $entities_id;
+        // Cache por requisição: a lista de pesquisas consulta a validade
+        // uma vez por linha exibida.
+        if (!array_key_exists($entities_id, self::$cache_by_entity)) {
+            $settings = new self();
+            if (!$settings->getFromDBByCrit(['entities_id' => $entities_id])) {
+                $settings->getEmpty();
+                $settings->fields['entities_id'] = $entities_id;
+            }
+            self::$cache_by_entity[$entities_id] = $settings->fields;
         }
+
+        $settings = new self();
+        $settings->fields = self::$cache_by_entity[$entities_id];
         return $settings;
+    }
+
+    /** @var array<int, array> entities_id => campos da configuração */
+    private static array $cache_by_entity = [];
+
+    public function post_addItem()
+    {
+        unset(self::$cache_by_entity[(int) ($this->fields['entities_id'] ?? 0)]);
+    }
+
+    public function post_updateItem($history = true)
+    {
+        unset(self::$cache_by_entity[(int) ($this->fields['entities_id'] ?? 0)]);
     }
 
     /**

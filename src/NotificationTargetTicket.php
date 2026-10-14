@@ -13,6 +13,16 @@ class NotificationTargetTicket extends \NotificationTargetTicket
 {
     public function getEvents(): array
     {
+        return self::pluginEvents();
+    }
+
+    /**
+     * Eventos do plugin, sem precisar instanciar a classe.
+     *
+     * @return array<string, string>
+     */
+    public static function pluginEvents(): array
+    {
         return ['satisfacao_survey' => __('Pesquisa de satisfação disponível', 'satisfacao')];
     }
 
@@ -28,6 +38,9 @@ class NotificationTargetTicket extends \NotificationTargetTicket
      */
     public static function addEvents(\NotificationTargetTicket $target): void
     {
-        $target->events += (new self())->getEvents();
+        // Não instanciar `new self()` aqui: o construtor de NotificationTarget
+        // carrega todos os destinatários possíveis (grupos, perfis...), e este
+        // hook roda a cada evento de chamado disparado pelo core.
+        $target->events += self::pluginEvents();
     }
 }

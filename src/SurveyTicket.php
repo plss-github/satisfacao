@@ -24,6 +24,9 @@ class SurveyTicket extends CommonDBTM
     public const STATUS_ANSWERED  = 2;
     public const STATUS_EXPIRED   = 3;
 
+    /** Máximo de pesquisas expiradas por execução da ação automática. */
+    public const CRON_BATCH_SIZE = 500;
+
     public static function getTypeName($nb = 0)
     {
         return _n('Pesquisa de satisfação', 'Pesquisas de satisfação', $nb, 'satisfacao');
@@ -175,6 +178,10 @@ class SurveyTicket extends CommonDBTM
                     'DATE_ADD(st.date_begin, INTERVAL COALESCE(ss.validity_days, 0) DAY) < NOW()'
                 ),
             ],
+            // Lote por execução: a ação roda em modo interno (dentro de uma
+            // requisição de usuário); o restante fica para a próxima execução.
+            'ORDERBY' => ['st.date_begin ASC'],
+            'LIMIT'   => self::CRON_BATCH_SIZE,
         ]);
 
         $count = 0;
