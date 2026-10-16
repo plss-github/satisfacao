@@ -22,6 +22,7 @@ if (isset($_POST['save'])) {
         $to_id_array($_POST['excluded_categories'] ?? []),
         $to_id_array($_POST['excluded_users'] ?? []),
         $to_id_array($_POST['excluded_groups'] ?? []),
+        $to_id_array($_POST['excluded_solutiontypes'] ?? []),
         max(0, (int) ($_POST['validity_days'] ?? 0))
     );
     Session::addMessageAfterRedirect(__('Mensagens salvas.', 'satisfacao'));
@@ -161,6 +162,20 @@ Group::dropdown([
     'name'     => 'excluded_groups[]',
     'multiple' => true,
     'value'    => $exclusions['groups'],
+    'width'    => '100%',
+]);
+echo '</td>';
+echo '</tr>';
+
+echo '<tr class="tab_bg_1">';
+echo '<td>' . __('Tipo de solução', 'satisfacao')
+    . Menu::helpIcon(__('Ex: um tipo de solução "Cancelado" para chamados encerrados sem atendimento efetivo.', 'satisfacao'))
+    . '</td>';
+echo '<td>';
+SolutionType::dropdown([
+    'name'     => 'excluded_solutiontypes[]',
+    'multiple' => true,
+    'value'    => $exclusions['solutiontypes'],
     'width'    => '100%',
 ]);
 echo '</td>';

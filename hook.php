@@ -85,6 +85,7 @@ function plugin_satisfacao_install()
                 `excluded_categories` text DEFAULT NULL,
                 `excluded_users` text DEFAULT NULL,
                 `excluded_groups` text DEFAULT NULL,
+                `excluded_solutiontypes` text DEFAULT NULL,
                 `validity_days` int unsigned NOT NULL DEFAULT 0,
                 `date_creation` timestamp NULL DEFAULT NULL,
                 `date_mod` timestamp NULL DEFAULT NULL,
@@ -94,9 +95,9 @@ function plugin_satisfacao_install()
         ) or die($DB->error());
     } else {
         // Instalação existente de antes dos critérios de exclusão de
-        // disparo (origem/categoria/solicitante/grupo) — adiciona as
+        // disparo (origem/categoria/solicitante/grupo/tipo de solução) — adiciona as
         // colunas se ainda não existirem.
-        foreach (['excluded_requesttypes', 'excluded_categories', 'excluded_users', 'excluded_groups'] as $column) {
+        foreach (['excluded_requesttypes', 'excluded_categories', 'excluded_users', 'excluded_groups', 'excluded_solutiontypes'] as $column) {
             if (!$DB->fieldExists('glpi_plugin_satisfacao_surveysettings', $column)) {
                 $DB->doQuery(
                     "ALTER TABLE `glpi_plugin_satisfacao_surveysettings`

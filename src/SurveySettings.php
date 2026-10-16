@@ -5,6 +5,7 @@ namespace GlpiPlugin\Satisfacao;
 use CommonDBTM;
 use CommonITILActor;
 use Group_Ticket;
+use ITILSolution;
 use Session;
 use Ticket;
 use Ticket_User;
@@ -99,6 +100,7 @@ class SurveySettings extends CommonDBTM
      * @param int[]       $excluded_categories   IDs de ITILCategory a excluir.
      * @param int[]       $excluded_users        IDs de usuário (solicitante) a excluir.
      * @param int[]       $excluded_groups       IDs de grupo (solicitante) a excluir.
+     * @param int[]       $excluded_solutiontypes IDs de SolutionType (tipo da solução do chamado) a excluir.
      * @param integer     $validity_days         Quantidade de dias que a pesquisa fica disponível
      *                                            para resposta a partir do fechamento do chamado
      *                                            (`date_begin`). 0 = sem prazo (nunca expira).
@@ -113,6 +115,7 @@ class SurveySettings extends CommonDBTM
         array $excluded_categories = [],
         array $excluded_users = [],
         array $excluded_groups = [],
+        array $excluded_solutiontypes = [],
         int $validity_days = 0
     ): void {
         $header_message   = ($header_message !== null && trim($header_message) !== '') ? $header_message : null;
@@ -125,6 +128,7 @@ class SurveySettings extends CommonDBTM
             'excluded_categories'   => self::encodeIdList($excluded_categories),
             'excluded_users'        => self::encodeIdList($excluded_users),
             'excluded_groups'       => self::encodeIdList($excluded_groups),
+            'excluded_solutiontypes' => self::encodeIdList($excluded_solutiontypes),
             'validity_days'         => max(0, $validity_days),
         ];
 
@@ -177,7 +181,7 @@ class SurveySettings extends CommonDBTM
      * Lista de IDs excluídos de cada critério, já decodificada, pronta
      * pra alimentar os multi-selects do formulário de configurações.
      *
-     * @return array{requesttypes: int[], categories: int[], users: int[], groups: int[]}
+     * @return array{requesttypes: int[], categories: int[], users: int[], groups: int[], solutiontypes: int[]}
      */
     /**
      * Quantidade de dias que a pesquisa fica disponível para resposta a
@@ -198,6 +202,7 @@ class SurveySettings extends CommonDBTM
             'categories'   => self::decodeIdList($this->fields['excluded_categories'] ?? null),
             'users'        => self::decodeIdList($this->fields['excluded_users'] ?? null),
             'groups'       => self::decodeIdList($this->fields['excluded_groups'] ?? null),
+            'solutiontypes' => self::decodeIdList($this->fields['excluded_solutiontypes'] ?? null),
         ];
     }
 
@@ -205,7 +210,7 @@ class SurveySettings extends CommonDBTM
      * Verifica se a pesquisa NÃO deve ser gerada para este chamado, de
      * acordo com os critérios de exclusão configurados na entidade dele
      * (origem da requisição, categoria, solicitante ou grupo do
-     * solicitante — ex.: chamados abertos por ferramentas de
+     * solicitante ou tipo de solução — ex.: chamados abertos por ferramentas de
      * monitoramento/integrações). Sem configuração pra entidade, nada é
      * excluído.
      *
@@ -234,6 +239,22 @@ class SurveySettings extends CommonDBTM
             && in_array((int) $ticket->fields['itilcategories_id'], $exclusions['categories'], true)
         ) {
             return true;
+        }
+
+        if (!empty($exclusions['solutiontypes'])) {
+            // Tipo da solução mais recente do chamado (ex.: "Cancelado").
+            $solution = (new ITILSolution())->find(
+                ['itemtype' => Ticket::class, 'items_id' => $ticket->getID()],
+                ['id DESC'],
+                1
+            );
+            $solution = reset($solution);
+            if (
+                $solution !== false
+                && in_array((int) $solution['solutiontypes_id'], $exclusions['solutiontypes'], true)
+            ) {
+                return true;
+            }
         }
 
         if (!empty($exclusions['users'])) {

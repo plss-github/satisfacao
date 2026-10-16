@@ -10,7 +10,7 @@
  * -------------------------------------------------------------------------
  */
 
-define('PLUGIN_SATISFACAO_VERSION', '1.3.0');
+define('PLUGIN_SATISFACAO_VERSION', '1.4.0');
 define('PLUGIN_SATISFACAO_MIN_GLPI', '11.0');
 define('PLUGIN_SATISFACAO_MAX_GLPI', '11.9.99');
 

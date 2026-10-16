@@ -85,8 +85,9 @@ para o(s) solicitante(s), uma única vez por chamado.
   "Não gerar pesquisa quando"), por entidade: origem da requisição
   (`RequestType`, ex: um tipo dedicado a chamados abertos por ferramenta
   de monitoramento/integração), categoria do chamado, um usuário
-  solicitante específico (ex: conta técnica usada por uma integração) ou
-  um grupo do solicitante. Se um chamado bater em **qualquer** um dos
+  solicitante específico (ex: conta técnica usada por uma integração),
+  um grupo do solicitante ou o tipo da solução do chamado (ex: um tipo
+  "Cancelado"; vale o tipo da solução mais recente). Se um chamado bater em **qualquer** um dos
   critérios marcados, a pesquisa não é criada quando ele fecha — os
   demais critérios (pergunta ativa, "uma pesquisa por chamado") continuam
   valendo normalmente. Sem nada marcado, nenhum chamado é excluído
@@ -415,7 +416,7 @@ correções abaixo só apareceram testando contra uma instância de verdade:
   ser refinado depois se for necessário liberar a visualização de
   resultados para outro perfil sem dar acesso total de configuração.
 - Critérios de exclusão de disparo cobrem origem da requisição,
-  categoria, solicitante e grupo do solicitante — não há (ainda) opção
+  categoria, solicitante, grupo do solicitante e tipo de solução — não há (ainda) opção
   de excluir por tipo de chamado (Incidente x Requisição), nem um
   lembrete (notificação) automático para pesquisas pendentes há muito
   tempo (existe agora uma ação automática, `satisfacaoexpire`, mas ela só
